@@ -6,12 +6,12 @@ const jwt = require('jsonwebtoken');
 const user_jwt = require('../middleware/user_jwt');
 // const token = require('morgan');
 
-router.get('/', user_jwt, async(req, res, next)=>{
+router.get('/', user_jwt, async (req, res, next) => {
     try {
         const user = await User.findById(req.user.id).select('-password');
         res.status(200).json({
             success: true,
-            user : user
+            user: user
         })
     } catch (error) {
         console.log(error.message);
@@ -25,16 +25,33 @@ router.get('/', user_jwt, async(req, res, next)=>{
 
 
 
-router.post('/register',async (req, res, next) =>{
+router.post('/register', async (req, res, next) => {
     // const jwtUserSecret = "userToken"
-    const {username, email, password} = req.body;
+    const { username, email, password } = req.body;
 
-    try{
-        let user_exist = await User.findOne({email:email});
-        if(user_exist){
+    try {
+
+        // Validate input
+        if (!username || !email || !password) {
+            return res.status(400).json({
+                success: false,
+                msg: 'Please provide username, email, and password.',
+            });
+        }
+
+        let user_exist = await User.findOne({ email: email });
+        if (user_exist) {
             return res.json({
                 success: false,
                 msg: "User already exists"
+            });
+        }
+
+        // Ensure the password is a string
+        if (typeof password !== 'string') {
+            return res.status(400).json({
+                success: false,
+                msg: 'Invalid password format',
             });
         }
 
@@ -47,103 +64,103 @@ router.post('/register',async (req, res, next) =>{
         user.password = await bcryptjs.hash(password, salt);
 
         let size = 200;
-        user.avatar = "https://gravatar.com/avatar/?s="+size+"&d=retro";
+        user.avatar = "https://gravatar.com/avatar/?s=" + size + "&d=retro";
 
         await user.save();
 
         const payload = {
-            user:{
-                id:user.id
+            user: {
+                id: user.id
             }
         }
 
         jwt.sign(payload, process.env.JWT_USER_SECREATE, {
             // expireIn: 360000
-        },(err, token)=>{
-            if(err) {
+        }, (err, token) => {
+            if (err) {
                 console.error(err);
                 res.status(500).json({
-                success: false,
-                msg: 'Server error',
-          });
+                    success: false,
+                    msg: 'Server error',
+                });
             }
-            else{
+            else {
                 res.status(200).json({
                     success: true,
                     token: token
                 })
             }
-            
+
         })
-    }catch(err){
+    } catch (err) {
         console.error(err.message);
-    res.status(500).json({
-      success: false,
-      msg: 'Server error',
-    });
+        res.status(500).json({
+            success: false,
+            msg: 'Server error',
+        });
     }
 });
 
 
-    router.post('/login', async(req, res, next)=>{
-        const email = req.body.email;
-        const password = req.body.password;
+router.post('/login', async (req, res, next) => {
+    const email = req.body.email;
+    const password = req.body.password;
 
-        try {
-            let user = await User.findOne({
-                email: email
+    try {
+        let user = await User.findOne({
+            email: email
+        });
+
+        if (!user) {
+            res.status(400).json({
+                success: false,
+                msg: 'User not exists go and register to continue'
             });
+        }
 
-            if(!user){
-                res.status(400).json({
+        const isMatch = await bcryptjs.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(400).json({
+                success: false,
+                msg: 'Invalid password'
+            })
+        }
+
+        const payload = {
+            user: {
+                id: user.id
+            }
+        }
+
+        jwt.sign(payload, process.env.JWT_USER_SECREATE, {
+            // expireIn: 360000
+        }, (err, token) => {
+            if (err) {
+                console.error(err);
+                res.status(500).json({
                     success: false,
-                    msg: 'User not exists go and register to continue'
+                    msg: 'Server error',
+                });
+            } else {
+                res.status(200).json({
+                    success: true,
+                    msg: 'User logged in',
+                    token: token,
+                    user: user
                 });
             }
 
-            const isMatch = await bcryptjs.compare(password, user.password);
-            if(!isMatch){
-                return res.status(400).json({
-                    success: false,
-                    msg: 'Invalid password'
-                })
-            }
-
-            const payload = {
-                user:{
-                    id:user.id
-                }
-            }
-
-            jwt.sign(payload, process.env.JWT_USER_SECREATE, {
-                // expireIn: 360000
-            },(err, token)=>{
-                if (err) {
-                    console.error(err);
-                    res.status(500).json({
-                      success: false,
-                      msg: 'Server error',
-                    });
-                  }else{
-                    res.status(200).json({
-                        success: true,
-                        msg: 'User logged in',
-                        token: token,
-                        user: user
-                    });
-                  }
-                
-            })
+        })
 
 
-        } catch (error) {
-            console.log(error.message);
-            res.status(500).json({
-                success: true,
-                msg: 'Server error'
-            })
-        }
-    });
+    } catch (error) {
+        console.log(error.message);
+        res.status(500).json({
+            success: true,
+            msg: 'Server error'
+        })
+    }
+});
 
 
-   module.exports = router;
+module.exports = router;
