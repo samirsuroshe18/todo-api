@@ -16,7 +16,7 @@ router.get('/', user_jwt, async(req, res, next)=>{
     } catch (error) {
         console.log(error.message);
         res.status(500).json({
-            success: true,
+            success: false,
             msg: 'server error'
         })
         next();
@@ -35,7 +35,7 @@ router.post('/register',async (req, res, next) =>{
             return res.json({
                 success: false,
                 msg: "User already exists"
-            })
+            });
         }
 
         let user = new User();
@@ -43,7 +43,7 @@ router.post('/register',async (req, res, next) =>{
         user.username = username;
         user.email = email;
 
-        const salt = await bcryptjs.genSalt(10);
+        const salt = await bcryptjs.genSalt(4);
         user.password = await bcryptjs.hash(password, salt);
 
         let size = 200;
@@ -60,15 +60,30 @@ router.post('/register',async (req, res, next) =>{
         jwt.sign(payload, process.env.JWT_USER_SECREATE, {
             // expireIn: 360000
         },(err, token)=>{
-            if(err) throw err;
-            res.status(200).json({
-                success: true,
-                token: token
-            })
+            if(err) {
+                console.error(err);
+                res.status(500).json({
+                success: false,
+                msg: 'Server error',
+          });
+            }
+            else{
+                res.status(200).json({
+                    success: true,
+                    token: token
+                })
+            }
+            
         })
     }catch(err){
-        console.log(err);
+        console.error(err.message);
+    res.status(500).json({
+      success: false,
+      msg: 'Server error',
+    });
     }
+});
+
 
     router.post('/login', async(req, res, next)=>{
         const email = req.body.email;
@@ -89,7 +104,7 @@ router.post('/register',async (req, res, next) =>{
             const isMatch = await bcryptjs.compare(password, user.password);
             if(!isMatch){
                 return res.status(400).json({
-                    success: true,
+                    success: false,
                     msg: 'Invalid password'
                 })
             }
@@ -103,13 +118,21 @@ router.post('/register',async (req, res, next) =>{
             jwt.sign(payload, process.env.JWT_USER_SECREATE, {
                 // expireIn: 360000
             },(err, token)=>{
-                if(err) throw err;
-                res.status(200).json({
-                    success: true,
-                    msg: 'User logged in',
-                    token: token,
-                    user: user
-                });
+                if (err) {
+                    console.error(err);
+                    res.status(500).json({
+                      success: false,
+                      msg: 'Server error',
+                    });
+                  }else{
+                    res.status(200).json({
+                        success: true,
+                        msg: 'User logged in',
+                        token: token,
+                        user: user
+                    });
+                  }
+                
             })
 
 
@@ -120,9 +143,7 @@ router.post('/register',async (req, res, next) =>{
                 msg: 'Server error'
             })
         }
-    })
-
-});
+    });
 
 
-module.exports = router;
+   module.exports = router;
