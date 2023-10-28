@@ -17,7 +17,7 @@ mongoose.connect(DB).then(() => {
 app.use(morgan('dev'));
 
 app.use(express.json({}));
-app.use(express.json({
+app.use(express.urlencoded({
     extended: true
 }));
 
